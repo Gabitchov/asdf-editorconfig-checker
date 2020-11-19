@@ -18,7 +18,7 @@ install_tool() {
 
   platform=$(get_platform)
   download_url=$(get_download_url "$version" "$platform" "$binary_name")
-  download_path="$tmp_download_dir/"$(get_filename "$platform")
+  download_path="$tmp_download_dir/"$(get_filename "$platform" "$binary_name")
 
   echo "Downloading [${binary_name}] from ${download_url} to ${download_path}"
   curl -Lo "$download_path" "$download_url"
@@ -33,7 +33,7 @@ install_tool() {
   tar xpf "$download_path" -C "$tmp_download_dir"
 
   echo "Copying binary"
-  cp "$(get_binary_path_in_archive "${tmp_download_dir}" "${binary_name}" "${platform}")" "${binary_path}"
+  cp "$(get_binary_path_in_archive "${tmp_download_dir}" "${platform}" "${binary_name}")" "${binary_path}"
   chmod +x "${binary_path}"
 }
 
@@ -41,13 +41,10 @@ install_tool() {
 
 get_binary_path_in_archive() {
   local archive_dir=$1
-  local binary_name=$2
-  local platform=$3
-  local extract_dir
-  extract_dir=$(get_filename "$platform")
-  extract_dir=${extract_dir//.tar.gz/}
+  local platform=$2
+  local binary_name=$3
 
-  echo "$archive_dir/$extract_dir/bin/ec-$platform"
+  echo "$archive_dir/bin/$binary_name-$platform"
 }
 
 get_platform() {
@@ -56,8 +53,9 @@ get_platform() {
 
 get_filename() {
   local platform="$1"
+  local binary_name="$2"
 
-  echo "ec-${platform}.tar.gz"
+  echo "${binary_name}-${platform}.tar.gz"
 }
 
 # https://github.com/editorconfig-checker/editorconfig-checker/releases/download/2.2.2/ec-linux-amd64.tar.gz
@@ -65,12 +63,13 @@ get_filename() {
 get_download_url() {
   local version="$1"
   local platform="$2"
+  local binary_name="$3"
   local filename
-  filename="$(get_filename "$platform")"
+  filename="$(get_filename "$platform" "$binary_name")"
 
   echo "https://github.com/editorconfig-checker/editorconfig-checker/releases/download/${version}/${filename}"
 }
 
 tmp_download_dir="$(mktemp -d -t 'asdf_XXXXXXXX')"
 trap 'rm -rf "${tmp_download_dir}"' EXIT
-install_tool "$ASDF_INSTALL_TYPE" "$ASDF_INSTALL_VERSION" "$ASDF_INSTALL_PATH" "$tmp_download_dir" editorconfig-checker
+install_tool "$ASDF_INSTALL_TYPE" "$ASDF_INSTALL_VERSION" "$ASDF_INSTALL_PATH" "$tmp_download_dir" ec
