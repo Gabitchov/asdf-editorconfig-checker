@@ -4,7 +4,7 @@
 
 # Installation
 
-> asdf plugin-add editorconfig-checker https://github.com/gabitchov/asdf-editorconfig-checker.git
+` asdf plugin-add editorconfig-checker https://github.com/gabitchov/asdf-editorconfig-checker.git`
 
 # Licence
 
