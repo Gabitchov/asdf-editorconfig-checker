@@ -33,7 +33,7 @@ install_tool() {
   tar xpf "$download_path" -C "$tmp_download_dir"
 
   echo "Copying binary"
-  cp "$(get_binary_path_in_archive "${tmp_download_dir}" "${binary_name}" "${version}" "${platform}")" "${binary_path}"
+  cp "$(get_binary_path_in_archive "${tmp_download_dir}" "${binary_name}" "${platform}")" "${binary_path}"
   chmod +x "${binary_path}"
 }
 
@@ -42,13 +42,12 @@ install_tool() {
 get_binary_path_in_archive() {
   local archive_dir=$1
   local binary_name=$2
-  local version=$3
-  local platform=$4
+  local platform=$3
   local extract_dir
   extract_dir=$(get_filename "$platform")
   extract_dir=${extract_dir//.tar.gz/}
 
-  echo "$archive_dir/$extract_dir-$version/$binary_name"
+  echo "$archive_dir/$extract_dir/bin/ec-$platform"
 }
 
 get_platform() {
