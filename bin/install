@@ -55,7 +55,7 @@ get_arch() {
   local arch
   arch=$(uname -m)
   case $arch in
-   "x86_64")
+   "x86_64" | "amd64")
       echo "amd64"
     ;;
     "i386" | "i686")
