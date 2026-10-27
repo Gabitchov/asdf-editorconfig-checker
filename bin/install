@@ -8,50 +8,81 @@ install_tool() {
 	local version=$2
 	local install_path=$3
 	local tmp_download_dir=$4
-	local binary_name=$5
 
+	local major_version="${version%%.*}"
 	local platform
+	local archive_prefix
+	local binary_name
+	local alias_name
 	local bin_install_path="$install_path/bin"
-	local binary_path="$bin_install_path/${binary_name}"
 	local download_url
 	local download_path
 
-	platform=$(get_platform)
-	download_url=$(get_download_url "$version" "$platform" "$binary_name")
-	download_path="$tmp_download_dir/"$(get_filename "$platform" "$binary_name")
+	# Since v4.0.0 the binary was renamed from ec to editorconfig-checker
+	if [ "$major_version" -ge 4 ]; then
+		archive_prefix=editorconfig-checker
+		binary_name=editorconfig-checker
+		alias_name=ec
+	else
+		archive_prefix=ec
+		binary_name=ec
+		alias_name=editorconfig-checker
+	fi
 
-	echo "Downloading [${binary_name}] from ${download_url} to ${download_path}"
-	curl -Lo "$download_path" "$download_url"
+	platform=$(get_platform "$major_version")
+	download_url=$(get_download_url "$version" "$platform" "$archive_prefix")
+	download_path="$tmp_download_dir/"$(get_filename "$platform" "$archive_prefix")
+
+	echo "Downloading [${archive_prefix}] from ${download_url} to ${download_path}"
+	curl -fLo "$download_path" "$download_url"
 
 	echo "Creating bin directory"
 	mkdir -p "${bin_install_path}"
 
 	echo "Cleaning previous binaries"
-	rm -f "$binary_path" 2>/dev/null || true
+	rm -f "$bin_install_path/ec" "$bin_install_path/editorconfig-checker" 2>/dev/null || true
 
 	echo "Extracting archive"
 	tar xpf "$download_path" -C "$tmp_download_dir"
 
 	echo "Copying binary"
-	cp "$(get_binary_path_in_archive "${tmp_download_dir}" "${platform}" "${binary_name}")" "${binary_path}"
-	chmod +x "${binary_path}"
+	cp "$(get_binary_path_in_archive "${tmp_download_dir}" "${platform}" "${major_version}")" "$bin_install_path/${binary_name}"
+	chmod +x "$bin_install_path/${binary_name}"
+
+	# Provide both names so scripts using either one keep working
+	ln -s "${binary_name}" "$bin_install_path/${alias_name}"
 }
 
-# ec-linux-amd64.tar.gz
+# < v4: ec-linux-amd64.tar.gz containing bin/ec-linux-amd64
+# >= v4: editorconfig-checker-linux-amd64.tar.gz containing editorconfig-checker
 
 get_binary_path_in_archive() {
 	local archive_dir=$1
 	local platform=$2
-	local binary_name=$3
+	local major_version=$3
 
-	echo "$archive_dir/bin/$binary_name-$platform"
+	if [ "$major_version" -ge 4 ]; then
+		echo "$archive_dir/editorconfig-checker"
+	else
+		echo "$archive_dir/bin/ec-$platform"
+	fi
 }
 
 get_platform() {
-	echo "$(uname | tr '[:upper:]' '[:lower:]')-$(get_arch)"
+	local major_version=$1
+	local os
+	os=$(uname | tr '[:upper:]' '[:lower:]')
+
+	# Since v4.0.0 macOS ships a single universal binary
+	if [ "$os" = "darwin" ] && [ "$major_version" -ge 4 ]; then
+		echo "darwin-all"
+		return
+	fi
+	echo "${os}-$(get_arch "$major_version")"
 }
 
 get_arch() {
+	local major_version=$1
 	local arch
 	arch=$(uname -m)
 	case $arch in
@@ -61,8 +92,12 @@ get_arch() {
 	"i386" | "i686")
 		echo "386"
 		;;
-	"arm")
-		echo "arm"
+	"arm" | "armv6l" | "armv7l")
+		if [ "$major_version" -ge 4 ]; then
+			echo "armv6"
+		else
+			echo "arm"
+		fi
 		;;
 	"aarch64" | "arm64")
 		echo "arm64"
@@ -76,21 +111,22 @@ get_arch() {
 
 get_filename() {
 	local platform="$1"
-	local binary_name="$2"
+	local archive_prefix="$2"
 
-	echo "${binary_name}-${platform}.tar.gz"
+	echo "${archive_prefix}-${platform}.tar.gz"
 }
 
 # https://github.com/editorconfig-checker/editorconfig-checker/releases/download/2.2.2/ec-linux-amd64.tar.gz
 # if version is 3.0.0 or higher, use v3.0.0
 # https://github.com/editorconfig-checker/editorconfig-checker/releases/download/v3.0.0/ec-linux-amd64.tar.gz
+# https://github.com/editorconfig-checker/editorconfig-checker/releases/download/v4.0.0/editorconfig-checker-linux-amd64.tar.gz
 
 get_download_url() {
 	local version="$1"
 	local platform="$2"
-	local binary_name="$3"
+	local archive_prefix="$3"
 	local filename
-	filename="$(get_filename "$platform" "$binary_name")"
+	filename="$(get_filename "$platform" "$archive_prefix")"
 
 	if [ "${version%%.*}" -ge 3 ]; then
 		version="v${version}"
@@ -100,4 +136,4 @@ get_download_url() {
 
 tmp_download_dir="$(mktemp -d -t 'asdf_XXXXXXXX')"
 trap 'rm -rf "${tmp_download_dir}"' EXIT
-install_tool "$ASDF_INSTALL_TYPE" "$ASDF_INSTALL_VERSION" "$ASDF_INSTALL_PATH" "$tmp_download_dir" ec
+install_tool "$ASDF_INSTALL_TYPE" "$ASDF_INSTALL_VERSION" "$ASDF_INSTALL_PATH" "$tmp_download_dir"
